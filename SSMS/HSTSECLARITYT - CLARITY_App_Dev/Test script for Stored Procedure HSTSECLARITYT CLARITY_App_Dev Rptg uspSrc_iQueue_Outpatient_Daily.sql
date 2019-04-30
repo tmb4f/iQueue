@@ -1,4 +1,4 @@
-USE [CLARITY_App]
+USE [CLARITY_App_Dev]
 GO
 
 SET ANSI_NULLS ON
@@ -10,8 +10,9 @@ GO
 DECLARE @StartDate SMALLDATETIME = NULL
        ,@EndDate SMALLDATETIME = NULL
 
-SET @StartDate = '4/5/2018 00:00 AM'
-SET @EndDate = '7/1/2019 11:59 PM'
+--SET @StartDate = '10/1/2017 00:00:00'
+--SET @StartDate = '4/16/2019 00:00:00'
+--SET @EndDate = '6/30/2019 00:00:00'
 
 --ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Outpatient_Daily]
 --       (
@@ -64,8 +65,9 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
           04/19/2019--WDR-- Changed APPT_NOTE to APPT_NOTES
           04/26/2019--WDR-- Convert commas in PROV_NAME and APPT_NOTES to ^ symbol.
 		                    This is done so that the file can be sent as a comma-delimited file.
+							Took out PAT_ENC_CSN_ID_unhashed for PHI reasons.
 							Change future appts to look ahead 6 months.
-							Change EOD lag date to -3 days.
+		  04/26/2019--TMB-- Change look-back to 3 days per recommendations from PFA
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -84,7 +86,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
       END;
   IF @EndDate IS NULL
       BEGIN
-          -- End of month, six months ahead from current date
+          -- End of month, two months ahead from current date
           SET @EndDate = CAST(EOMONTH(@CurrDate, 6) AS SMALLDATETIME)
           + CAST(CAST('23:59:59' AS TIME) AS SMALLDATETIME);
       END;
@@ -842,104 +844,52 @@ DROP TABLE #RptgTemp
   --    Load_Dte
   --)
 
-  --SELECT
-  --  [PAT_ENC_CSN_ID_unhashed]                          -- this will be in the table, but not in the flat file
-  -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
-  -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
-  --  ,CASE
-  --     WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
-  --     ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
-  --   END                                                                                  AS [PROV_NAME]
-  -- ,[APPT_DTTM]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
-  --  ,CASE
-  --     WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
-  --     ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
-  --   END                                                                                  AS [APPT_NOTES]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
-  -- ,[APPT_LENGTH]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]
-  -- ,[APPT_MADE_DTTM]
-  -- ,[APPT_CANC_DTTM]
-  -- ,[UPDATE_DATE]
-  -- ,[SIGNIN_DTTM]
-  -- ,[BEGIN_CHECKIN_DTTM]
-  -- ,[CHECKIN_DTTM]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')				AS [Patient_Room]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')				AS [Patient_Room_Recorded_DtTm]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
-  -- ,[ARVL_LIST_REMOVE_DTTM]
-  -- ,[AMB PATIENT VERIFIED]
-  -- ,[UVA AMB VITALS SIMPLE]
-  -- ,[ROOMED_DTTM]
-  -- ,[NURSE_LEAVE_DTTM]
-  -- ,[PHYS_ENTER_DTTM]
-  -- ,[T UVA AMB PATIENT UNDERSTANDING AVS]
-  -- ,[VISIT_END_DTTM]
-  -- ,[CHECKOUT_DTTM]
-  -- ,[TIME_TO_ROOM_MINUTES]
-  -- ,[TIME_IN_ROOM_MINUTES]
-  -- ,[CYCLE_TIME_MINUTES]
-  -- ,[ETL_guid]
-  -- ,[Load_Dte]
-  --FROM #RptgTemp
-  --ORDER BY [APPT_DTTM]
-
   SELECT
-    --ISNULL(CONVERT(VARCHAR(254),[PAT_ENC_CSN_ID]),'')					AS [PAT_ENC_CSN_ID]
-    ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
-   --,PAT_ENC_CSN_ID_unhashed
+    --[PAT_ENC_CSN_ID_unhashed]                                         -- NOT NEEDED FOR PHI REASONS
+    [PAT_ENC_CSN_ID_unhashed]
+   ,ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
    ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
-   ,ISNULL(CONVERT(VARCHAR(200),[PROV_NAME]),'')						AS [PROV_NAME]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_DTTM],121),'')						AS [APPT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')			AS [ENC_REASON_NAME]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),'')						AS [APPT_NOTES]
+    ,CASE
+       WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
+       ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
+     END                                                                                  AS [PROV_NAME]
+   ,[APPT_DTTM]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
+    ,CASE
+       WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
+       ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
+     END                                                                                  AS [APPT_NOTES]
    ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
-   ,ISNULL(CONVERT(VARCHAR(18),[APPT_LENGTH]),'')						AS [APPT_LENGTH]
+   ,[APPT_LENGTH]
    ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_MADE_DTTM],121),'')				AS [APPT_MADE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_CANC_DTTM],121),'')				AS [APPT_CANC_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[UPDATE_DATE],121),'')					AS [UPDATE_DATE]
-   ,ISNULL(CONVERT(VARCHAR(19),[SIGNIN_DTTM],121),'')					AS [SIGNIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[BEGIN_CHECKIN_DTTM],121),'')			AS [BEGIN_CHECKIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[CHECKIN_DTTM],121),'')					AS [CHECKIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')					AS [Patient_Room]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')					AS [Patient_Room_Recorded_DtTm]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
-   ,ISNULL(CONVERT(VARCHAR(19),[ARVL_LIST_REMOVE_DTTM],121),'')			AS [ARVL_LIST_REMOVE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[AMB PATIENT VERIFIED],121),'')			AS [AMB PATIENT VERIFIED]
-   ,ISNULL(CONVERT(VARCHAR(19),[UVA AMB VITALS SIMPLE],121),'')			AS [UVA AMB VITALS SIMPLE]
-   ,ISNULL(CONVERT(VARCHAR(19),[ROOMED_DTTM],121),'')					AS [ROOMED_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[NURSE_LEAVE_DTTM],121),'')				AS [NURSE_LEAVE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[PHYS_ENTER_DTTM],121),'')				AS [PHYS_ENTER_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[T UVA AMB PATIENT UNDERSTANDING AVS],121),'')					AS [T UVA AMB PATIENT UNDERSTANDING AVS]
-   ,ISNULL(CONVERT(VARCHAR(19),[VISIT_END_DTTM],121),'')				AS [VISIT_END_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[CHECKOUT_DTTM],121),'')					AS [CHECKOUT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(18),[TIME_TO_ROOM_MINUTES]),'')				AS [TIME_TO_ROOM_MINUTES]
-   ,ISNULL(CONVERT(VARCHAR(18),[TIME_IN_ROOM_MINUTES]),'')				AS [TIME_IN_ROOM_MINUTES]
-   ,ISNULL(CONVERT(VARCHAR(18),[CYCLE_TIME_MINUTES]),'')				AS [CYCLE_TIME_MINUTES]
-   --,ISNULL(CONVERT(CHAR(1),[Linked Appointment Flag]),'')			    AS [Linked Appointment Flag]
+   ,[APPT_MADE_DTTM]
+   ,[APPT_CANC_DTTM]
+   ,[UPDATE_DATE]
+   ,[SIGNIN_DTTM]
+   ,[BEGIN_CHECKIN_DTTM]
+   ,[CHECKIN_DTTM]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')				AS [Patient_Room]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')				AS [Patient_Room_Recorded_DtTm]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
+   ,[ARVL_LIST_REMOVE_DTTM]
+   ,[AMB PATIENT VERIFIED]
+   ,[UVA AMB VITALS SIMPLE]
+   ,[ROOMED_DTTM]
+   ,[NURSE_LEAVE_DTTM]
+   ,[PHYS_ENTER_DTTM]
+   ,[T UVA AMB PATIENT UNDERSTANDING AVS]
+   ,[VISIT_END_DTTM]
+   ,[CHECKOUT_DTTM]
+   ,[TIME_TO_ROOM_MINUTES]
+   ,[TIME_IN_ROOM_MINUTES]
+   ,[CYCLE_TIME_MINUTES]
    ,[ETL_guid]
-   ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
+   ,[Load_Dte]
   FROM #RptgTemp
-  --WHERE [APPT_STATUS_NAME] IN ('Arrived','Completed')
-  --ORDER BY [APPT_DTTM]
-  --ORDER BY CAST([APPT_DTTM] AS DATE)
-  --       , APPT_STATUS_NAME
-  ORDER BY DEPARTMENT_NAME
-         , APPT_DTTM
-  --ORDER BY PAT_ENC_CSN_ID_unhashed
-  --ORDER BY PROV_NAME
-  --       , DEPARTMENT_NAME
-  --       , APPT_DTTM
-  --ORDER BY APPT_DTTM
-  --       , PAT_ENC_CSN_ID_unhashed
+  ORDER BY [APPT_DTTM]
 
 GO
 
