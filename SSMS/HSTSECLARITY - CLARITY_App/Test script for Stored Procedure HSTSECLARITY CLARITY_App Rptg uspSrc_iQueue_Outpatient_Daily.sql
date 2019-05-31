@@ -10,8 +10,13 @@ GO
 DECLARE @StartDate SMALLDATETIME = NULL
        ,@EndDate SMALLDATETIME = NULL
 
-SET @StartDate = '4/5/2018 00:00 AM'
-SET @EndDate = '7/1/2019 11:59 PM'
+--SET @StartDate = '4/5/2018 00:00 AM'
+--SET @EndDate = '7/1/2019 11:59 PM'
+SET @StartDate = '1/1/2018 00:00 AM'
+SET @EndDate = '5/1/2019 11:59 PM'
+--SET @EndDate = '4/6/2018 11:59 PM'
+--SET @StartDate = '5/11/2019 00:00 AM'
+--SET @EndDate = '5/13/2019 11:59 PM'
 
 --ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Outpatient_Daily]
 --       (
@@ -66,6 +71,8 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 		                    This is done so that the file can be sent as a comma-delimited file.
 							Change future appts to look ahead 6 months.
 							Change EOD lag date to -3 days.
+		  05/29/2019--TMB-- Add PROV_ID to extract.
+		                    Add PROV_IDs to WHERE statement that defines pilot visit population
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -101,6 +108,12 @@ DROP TABLE #ScheduledAppointmentNote
 
 IF OBJECT_ID('tempdb..#ScheduledAppointment ') IS NOT NULL
 DROP TABLE #ScheduledAppointment
+
+--IF OBJECT_ID('tempdb..#ScheduledAppointmentCheck ') IS NOT NULL
+--DROP TABLE #ScheduledAppointmentCheck
+
+--IF OBJECT_ID('tempdb..#ScheduledAppointmentCheck2 ') IS NOT NULL
+--DROP TABLE #ScheduledAppointmentCheck2
 
 IF OBJECT_ID('tempdb..#ScheduledAppointmentPlus ') IS NOT NULL
 DROP TABLE #ScheduledAppointmentPlus
@@ -141,12 +154,22 @@ DROP TABLE #RptgTemp
   ON pt.PAT_ID = pa.PAT_ID
   WHERE
   (pa.[APPT_DTTM] >= @StartDate AND pa.[APPT_DTTM] <= @EndDate)
-   AND (pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
-                            ,10210030 -- ECCC NEURO WEST
-							,10243003 -- UVHE DIGESTIVE HEALTH
-							,10243087 -- UVHE SURG DIGESTIVE HL
-							,10244023 -- UVWC MED GI CL
-							)
+   AND ((pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
+                             ,10210030 -- ECCC NEURO WEST
+							 ,10243003 -- UVHE DIGESTIVE HEALTH
+							 ,10243087 -- UVHE SURG DIGESTIVE HL
+							 ,10244023 -- UVWC MED GI CL
+							 )
+	    )
+		OR
+		(pa.PROV_ID IN ('47947' -- ASTHAGIRI, ASHOK
+		               ,'28954' -- CROPLEY, THOMAS
+					   ,'89921' -- ISHARWAL, SUMIT
+					   ,'29044' -- KRUPSKI, TRACEY
+					   ,'56655' -- MAITLAND, HILLARY S
+					   ,'29690' -- SHAFFREY, MARK
+					   )
+		)
 	   )
 
   -- Create index for temp table #ClinicPatient
@@ -256,6 +279,8 @@ DROP TABLE #RptgTemp
 	,REFERRAL_HIST.CHANGE_DATE
 	,pa.PROV_ID
 	,CLARITY_SER.PROV_NAME
+	--,CLARITY_SER_2.NPI
+	--,CLARITY_SER.[USER_ID]
 	,fpa.UPDATE_DATE
 
   INTO #ScheduledAppointment
@@ -265,6 +290,7 @@ DROP TABLE #RptgTemp
   LEFT OUTER JOIN CLARITY.dbo.PAT_ENC     AS enc   ON enc.PAT_ENC_CSN_ID = pa.PAT_ENC_CSN_ID
   LEFT OUTER JOIN CLARITY.dbo.CLARITY_DEP AS dep   ON pa.DEPARTMENT_ID   = dep.DEPARTMENT_ID
   LEFT OUTER JOIN CLARITY.dbo.CLARITY_SER AS CLARITY_SER   ON pa.PROV_ID = CLARITY_SER.PROV_ID
+  LEFT OUTER JOIN CLARITY.dbo.CLARITY_SER_2 AS CLARITY_SER_2   ON CLARITY_SER.PROV_ID = CLARITY_SER_2.PROV_ID
   LEFT OUTER JOIN (SELECT DISTINCT
                           rsn.PAT_ENC_CSN_ID
                         , (SELECT COALESCE(MAX(rsnt.ENC_REASON_NAME),'')  + '|' AS [text()]
@@ -289,19 +315,59 @@ DROP TABLE #RptgTemp
 				   WHERE CHANGE_TYPE_C = 1) AS REFERRAL_HIST    ON REFERRAL_HIST.REFERRAL_ID = REFERRAL.REFERRAL_ID
   LEFT OUTER JOIN CLARITY.dbo.ZC_APPT_STATUS	AS ZC_APPT_STATUS	ON ZC_APPT_STATUS.APPT_STATUS_C = enc.APPT_STATUS_C
   LEFT OUTER JOIN [CLARITY].[dbo].[PATIENT] AS pt	ON pt.PAT_ID = pa.PAT_ID
-  WHERE (pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
+  WHERE ((pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
                              ,10210030 -- ECCC NEURO WEST
 							 ,10243003 -- UVHE DIGESTIVE HEALTH
 							 ,10243087 -- UVHE SURG DIGESTIVE HL
 							 ,10244023 -- UVWC MED GI CL
-							 ,10210004 -- ECCC INFUSION CENTER
 							 )
 	    )
+		OR
+		(pa.PROV_ID IN ('47947' -- ASTHAGIRI, ASHOK
+		               ,'28954' -- CROPLEY, THOMAS
+					   ,'89921' -- ISHARWAL, SUMIT
+					   ,'29044' -- KRUPSKI, TRACEY
+					   ,'56655' -- MAITLAND, HILLARY S
+					   ,'29690' -- SHAFFREY, MARK
+					   )
+		)
+	   )
 
   -- Create index for temp table #ScheduledAppointment
 
   CREATE UNIQUE CLUSTERED INDEX IX_ScheduledAppointment ON #ScheduledAppointment ([PAT_ID], [Appointment Date], RecordId)
 
+  --SELECT DISTINCT
+		--PROV_ID
+	 -- , PROV_NAME
+  --    --, ROW_NUMBER() OVER (PARTITION BY SUBSTRING(PROV_NAME,1,17) ORDER BY PROV_ID) AS SeqNbr
+	 -- --, NPI
+	 -- --, [USER_ID]
+	 -- --, DEPARTMENT_ID
+	 -- --, DEPARTMENT_NAME
+	 -- --, APPT_DTTM
+  --INTO #ScheduledAppointmentCheck
+  --FROM #ScheduledAppointment
+  ----ORDER BY PROV_NAME
+  --       --, DEPARTMENT_ID
+
+  --SELECT
+		--PROV_ID
+	 -- , PROV_NAME
+  --    , ROW_NUMBER() OVER (PARTITION BY SUBSTRING(PROV_NAME,1,17) ORDER BY PROV_ID) AS SeqNbr
+  --INTO #ScheduledAppointmentCheck2
+  --FROM #ScheduledAppointmentCheck
+  ----ORDER BY SeqNbr DESC
+
+  --SELECT
+		--[none].PROV_ID
+	 -- , [none].PROV_NAME
+  --FROM #ScheduledAppointmentCheck2 two
+  --INNER JOIN #ScheduledAppointmentCheck [none]
+  --ON SUBSTRING(two.PROV_NAME,1,17) = SUBSTRING([none].PROV_NAME,1,17)
+  --WHERE two.SeqNbr > 1
+  --ORDER BY [none].PROV_NAME
+  
   -- Create temp table #ScheduledAppointmentPlus
 
   SELECT
@@ -322,20 +388,42 @@ DROP TABLE #RptgTemp
     ,pa.SeqNbr
 	,pa.SeqNbrDesc
     ,pa.RecordId
-    ,CASE WHEN pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
-                                   ,10210030 -- ECCC NEURO WEST
-							       ,10243003 -- UVHE DIGESTIVE HEALTH
-							       ,10243087 -- UVHE SURG DIGESTIVE HL
-							       ,10244023 -- UVWC MED GI CL
-                                   )
+    ,CASE WHEN ((pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
+                                     ,10210030 -- ECCC NEURO WEST
+							         ,10243003 -- UVHE DIGESTIVE HEALTH
+							         ,10243087 -- UVHE SURG DIGESTIVE HL
+							         ,10244023 -- UVWC MED GI CL
+                                     )
+				)
+				OR
+		        (pa.PROV_ID IN ('47947' -- ASTHAGIRI, ASHOK
+		                       ,'28954' -- CROPLEY, THOMAS
+					           ,'89921' -- ISHARWAL, SUMIT
+					           ,'29044' -- KRUPSKI, TRACEY
+					           ,'56655' -- MAITLAND, HILLARY S
+					           ,'29690' -- SHAFFREY, MARK
+					           )
+		        )
+			   )
 			   AND pa.[Next DEPARTMENT_ID] = 10210004
 			   AND pa.[Next APPT_STATUS_C] IN (1,2,6) THEN pa.RecordId + 1
-          WHEN pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
-                                   ,10210030 -- ECCC NEURO WEST
-							       ,10243003 -- UVHE DIGESTIVE HEALTH
-							       ,10243087 -- UVHE SURG DIGESTIVE HL
-							       ,10244023 -- UVWC MED GI CL
-                                   )
+          WHEN ((pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
+                                     ,10210030 -- ECCC NEURO WEST
+							         ,10243003 -- UVHE DIGESTIVE HEALTH
+							         ,10243087 -- UVHE SURG DIGESTIVE HL
+							         ,10244023 -- UVWC MED GI CL
+                                     )
+				)
+				OR
+		        (pa.PROV_ID IN ('47947' -- ASTHAGIRI, ASHOK
+		                       ,'28954' -- CROPLEY, THOMAS
+					           ,'89921' -- ISHARWAL, SUMIT
+					           ,'29044' -- KRUPSKI, TRACEY
+					           ,'56655' -- MAITLAND, HILLARY S
+					           ,'29690' -- SHAFFREY, MARK
+					           )
+		        )
+			   )
 			   AND pa.[Next DEPARTMENT_ID] = 10210004
 			   AND pa.[Next APPT_STATUS_C] IN (3,4,5) THEN
            (SELECT COALESCE(MIN(sa.RecordId),0) FROM #ScheduledAppointment AS sa
@@ -502,12 +590,22 @@ DROP TABLE #RptgTemp
   INTO #ScheduledClinicAppointment
   FROM #ScheduledAppointmentLinked AS pa
   WHERE
-  (pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
-                       ,10210030 -- ECCC NEURO WEST
-				       ,10243003 -- UVHE DIGESTIVE HEALTH
-					   ,10243087 -- UVHE SURG DIGESTIVE HL
-					   ,10244023 -- UVWC MED GI CL
-					   )
+  ((pa.DEPARTMENT_ID IN (10210002 -- ECCC HEM ONC WEST
+                        ,10210030 -- ECCC NEURO WEST
+					    ,10243003 -- UVHE DIGESTIVE HEALTH
+						,10243087 -- UVHE SURG DIGESTIVE HL
+						,10244023 -- UVWC MED GI CL
+						)
+   )
+   OR
+   (pa.PROV_ID IN ('47947' -- ASTHAGIRI, ASHOK
+		          ,'28954' -- CROPLEY, THOMAS
+				  ,'89921' -- ISHARWAL, SUMIT
+				  ,'29044' -- KRUPSKI, TRACEY
+				  ,'56655' -- MAITLAND, HILLARY S
+				  ,'29690' -- SHAFFREY, MARK
+				  )
+   )
   )
 
   -- Create index for temp table #ScheduledClinicAppointment
@@ -728,6 +826,7 @@ DROP TABLE #RptgTemp
 	,pa.F2F_Flag
 	,pa.ENTRY_DATE
 	,pa.CHANGE_DATE
+	,pa.PROV_ID
 	,pa.PROV_NAME
 	,pa.UPDATE_DATE
   INTO #ScheduledClinicAppointmentDetail
@@ -755,6 +854,7 @@ DROP TABLE #RptgTemp
 	,[PAT_MRN_ID]
     ,[DEPARTMENT_NAME]
     ,[DEPT_SPECIALTY_NAME]
+	,[PROV_ID]
 	,[PROV_NAME]
     ,[APPT_DTTM]
 	,[ENC_REASON_NAME]
@@ -795,6 +895,7 @@ DROP TABLE #RptgTemp
 	  ,[PAT_MRN_ID]
       ,[DEPARTMENT_NAME]
       ,[DEPT_SPECIALTY_NAME]
+	  ,[PROV_ID]
 	  ,[PROV_NAME]
       ,[APPT_DTTM]
 	  ,[ENC_REASON_NAME]
@@ -833,7 +934,7 @@ DROP TABLE #RptgTemp
   --INSERT INTO CLARITY_App.Stage.iQueue_Clinics_Extract
   --(
   --    PAT_ENC_CSN_ID_unhashed,PAT_ENC_CSN_ID,PAT_MRN_ID,DEPARTMENT_NAME,DEPT_SPECIALTY_NAME,
-  --    PROV_NAME,APPT_DTTM,ENC_REASON_NAME,APPT_NOTES,PRC_NAME,APPT_LENGTH,APPT_STATUS_NAME,
+  --    PROV_ID,PROV_NAME,APPT_DTTM,ENC_REASON_NAME,APPT_NOTES,PRC_NAME,APPT_LENGTH,APPT_STATUS_NAME,
   --    APPT_MADE_DTTM,APPT_CANC_DTTM,UPDATE_DATE,SIGNIN_DTTM,BEGIN_CHECKIN_DTTM,CHECKIN_DTTM,
   --    Patient_Room,Patient_Room_Recorded_DtTm,Patient_Track,Patient_Track_Recorded_DtTm,
   --    ARVL_LIST_REMOVE_DTTM,[AMB PATIENT VERIFIED],[UVA AMB VITALS SIMPLE],ROOMED_DTTM,
@@ -848,6 +949,7 @@ DROP TABLE #RptgTemp
   -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
   -- ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
   -- ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
+   --,ISNULL(CONVERT(VARCHAR(18),[PROV_ID]),'')							    AS [PROV_ID]
   --  ,CASE
   --     WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
   --     ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
@@ -895,6 +997,7 @@ DROP TABLE #RptgTemp
    ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
+   ,ISNULL(CONVERT(VARCHAR(200),[PROV_ID]),'')							AS [PROV_ID]
    ,ISNULL(CONVERT(VARCHAR(200),[PROV_NAME]),'')						AS [PROV_NAME]
    ,ISNULL(CONVERT(VARCHAR(19),[APPT_DTTM],121),'')						AS [APPT_DTTM]
    ,ISNULL(CONVERT(VARCHAR(254),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')			AS [ENC_REASON_NAME]
@@ -932,12 +1035,16 @@ DROP TABLE #RptgTemp
   --ORDER BY [APPT_DTTM]
   --ORDER BY CAST([APPT_DTTM] AS DATE)
   --       , APPT_STATUS_NAME
-  ORDER BY DEPARTMENT_NAME
-         , APPT_DTTM
+  --ORDER BY DEPARTMENT_NAME
+  --       , APPT_DTTM
+  --ORDER BY [T UVA AMB PATIENT UNDERSTANDING AVS]
   --ORDER BY PAT_ENC_CSN_ID_unhashed
   --ORDER BY PROV_NAME
   --       , DEPARTMENT_NAME
   --       , APPT_DTTM
+  ORDER BY PROV_ID
+         , DEPARTMENT_NAME
+         , APPT_DTTM
   --ORDER BY APPT_DTTM
   --       , PAT_ENC_CSN_ID_unhashed
 
