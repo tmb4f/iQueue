@@ -13,7 +13,7 @@ DECLARE @StartDate SMALLDATETIME = NULL
 --SET @StartDate = '4/5/2018 00:00 AM'
 --SET @EndDate = '7/1/2019 11:59 PM'
 SET @StartDate = '1/1/2018 00:00 AM'
-SET @EndDate = '5/1/2019 11:59 PM'
+SET @EndDate = '6/2/2019 11:59 PM'
 --SET @EndDate = '4/6/2018 11:59 PM'
 --SET @StartDate = '5/11/2019 00:00 AM'
 --SET @EndDate = '5/13/2019 11:59 PM'
@@ -1032,7 +1032,7 @@ DROP TABLE #RptgTemp
    ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
   FROM #RptgTemp
   --WHERE [APPT_STATUS_NAME] IN ('Arrived','Completed')
-  --ORDER BY [APPT_DTTM]
+  ORDER BY [APPT_DTTM]
   --ORDER BY CAST([APPT_DTTM] AS DATE)
   --       , APPT_STATUS_NAME
   --ORDER BY DEPARTMENT_NAME
@@ -1042,9 +1042,9 @@ DROP TABLE #RptgTemp
   --ORDER BY PROV_NAME
   --       , DEPARTMENT_NAME
   --       , APPT_DTTM
-  ORDER BY PROV_ID
-         , DEPARTMENT_NAME
-         , APPT_DTTM
+  --ORDER BY PROV_ID
+  --       , DEPARTMENT_NAME
+  --       , APPT_DTTM
   --ORDER BY APPT_DTTM
   --       , PAT_ENC_CSN_ID_unhashed
 
