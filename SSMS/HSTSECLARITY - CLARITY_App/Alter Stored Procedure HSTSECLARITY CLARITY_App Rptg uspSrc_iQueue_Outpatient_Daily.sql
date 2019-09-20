@@ -7,22 +7,11 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @StartDate SMALLDATETIME = NULL
-       ,@EndDate SMALLDATETIME = NULL
-
---SET @StartDate = '4/5/2018 00:00 AM'
---SET @EndDate = '7/1/2019 11:59 PM'
-SET @StartDate = '1/1/2018 00:00 AM'
-SET @EndDate = '8/5/2019 11:59 PM'
---SET @EndDate = '4/6/2018 11:59 PM'
---SET @StartDate = '5/11/2019 00:00 AM'
---SET @EndDate = '5/13/2019 11:59 PM'
-
---ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Outpatient_Daily]
---       (
---        @StartDate SMALLDATETIME = NULL
---       ,@EndDate SMALLDATETIME = NULL)
---AS
+ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Outpatient_Daily]
+       (
+        @StartDate SMALLDATETIME = NULL
+       ,@EndDate SMALLDATETIME = NULL)
+AS
 /****************************************************************************************************************************************
 WHAT: Create procedure Rptg.uspSrc_iQueue_Outpatient_Daily
 WHO : Tom Burgan
@@ -75,7 +64,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 		  05/29/2019--TMB-- Add PROV_ID to extract.
 		                    Add PROV_IDs to WHERE statement that defines pilot visit population
 		  06/05/2019--WDR-- Output table renamed to Clarity_App.
-		  08/06/2019--TMB-- UVPC DIGESTIVE HEALTH (10242051) to pilot department list.
+		  08/06/2019--TMB-- Add UVPC DIGESTIVE HEALTH (10242051) to pilot department list.
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -99,51 +88,6 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
           + CAST(CAST('23:59:59' AS TIME) AS SMALLDATETIME);
       END;
 ----------------------------------------------------
-
-IF OBJECT_ID('tempdb..#ClinicPatient ') IS NOT NULL
-DROP TABLE #ClinicPatient
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentReason ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentReason
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentNote ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentNote
-
-IF OBJECT_ID('tempdb..#ScheduledAppointment ') IS NOT NULL
-DROP TABLE #ScheduledAppointment
-
---IF OBJECT_ID('tempdb..#ScheduledAppointmentCheck ') IS NOT NULL
---DROP TABLE #ScheduledAppointmentCheck
-
---IF OBJECT_ID('tempdb..#ScheduledAppointmentCheck2 ') IS NOT NULL
---DROP TABLE #ScheduledAppointmentCheck2
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentPlus ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentPlus
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentLinked ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentLinked
-
-IF OBJECT_ID('tempdb..#ScheduledClinicAppointment ') IS NOT NULL
-DROP TABLE #ScheduledClinicAppointment
-
-IF OBJECT_ID('tempdb..#FLT ') IS NOT NULL
-DROP TABLE #FLT
-
-IF OBJECT_ID('tempdb..#FLM ') IS NOT NULL
-DROP TABLE #FLM
-
-IF OBJECT_ID('tempdb..#FLTPIVOT ') IS NOT NULL
-DROP TABLE #FLTPIVOT
-
-IF OBJECT_ID('tempdb..#FLMSummary ') IS NOT NULL
-DROP TABLE #FLMSummary
-
-IF OBJECT_ID('tempdb..#ScheduledClinicAppointmentDetail ') IS NOT NULL
-DROP TABLE #ScheduledClinicAppointmentDetail
-
-IF OBJECT_ID('tempdb..#RptgTemp ') IS NOT NULL
-DROP TABLE #RptgTemp
 
   -- Create temp table #ClinicPatient with PAT_ID and Appt date
 
@@ -906,122 +850,64 @@ DROP TABLE #RptgTemp
 
   -- Put contents of temp table #RptgTemp into db table
 
-  --INSERT INTO CLARITY_App.Stage.iQueue_Clinics_Extract
-  --(
-  --    PAT_ENC_CSN_ID_unhashed,PAT_ENC_CSN_ID,PAT_MRN_ID,DEPARTMENT_NAME,DEPT_SPECIALTY_NAME,
-  --    PROV_ID,PROV_NAME,APPT_DTTM,ENC_REASON_NAME,APPT_NOTES,PRC_NAME,APPT_LENGTH,APPT_STATUS_NAME,
-  --    APPT_MADE_DTTM,APPT_CANC_DTTM,UPDATE_DATE,SIGNIN_DTTM,BEGIN_CHECKIN_DTTM,CHECKIN_DTTM,
-  --    Patient_Room,Patient_Room_Recorded_DtTm,Patient_Track,Patient_Track_Recorded_DtTm,
-  --    ARVL_LIST_REMOVE_DTTM,[AMB PATIENT VERIFIED],[UVA AMB VITALS SIMPLE],ROOMED_DTTM,
-  --    NURSE_LEAVE_DTTM,PHYS_ENTER_DTTM,[T UVA AMB PATIENT UNDERSTANDING AVS],VISIT_END_DTTM,
-  --    CHECKOUT_DTTM,TIME_TO_ROOM_MINUTES,TIME_IN_ROOM_MINUTES,CYCLE_TIME_MINUTES,ETL_guid,
-  --    Load_Dte
-  --)
-
-  --SELECT
-  --  [PAT_ENC_CSN_ID_unhashed]                          -- this will be in the table, but not in the flat file
-  -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
-  -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
-  -- ,ISNULL(CONVERT(VARCHAR(18),[PROV_ID]),'')							AS [PROV_ID]
-  --  ,CASE
-  --     WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
-  --     ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
-  --   END                                                                                  AS [PROV_NAME]
-  -- ,[APPT_DTTM]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
-  --  ,CASE
-  --     WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
-  --     ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
-  --   END                                                                                  AS [APPT_NOTES]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
-  -- ,[APPT_LENGTH]
-  -- ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]
-  -- ,[APPT_MADE_DTTM]
-  -- ,[APPT_CANC_DTTM]
-  -- ,[UPDATE_DATE]
-  -- ,[SIGNIN_DTTM]
-  -- ,[BEGIN_CHECKIN_DTTM]
-  -- ,[CHECKIN_DTTM]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')				AS [Patient_Room]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')				AS [Patient_Room_Recorded_DtTm]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
-  -- ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
-  -- ,[ARVL_LIST_REMOVE_DTTM]
-  -- ,[AMB PATIENT VERIFIED]
-  -- ,[UVA AMB VITALS SIMPLE]
-  -- ,[ROOMED_DTTM]
-  -- ,[NURSE_LEAVE_DTTM]
-  -- ,[PHYS_ENTER_DTTM]
-  -- ,[T UVA AMB PATIENT UNDERSTANDING AVS]
-  -- ,[VISIT_END_DTTM]
-  -- ,[CHECKOUT_DTTM]
-  -- ,[TIME_TO_ROOM_MINUTES]
-  -- ,[TIME_IN_ROOM_MINUTES]
-  -- ,[CYCLE_TIME_MINUTES]
-  -- ,[ETL_guid]
-  -- ,[Load_Dte]
-  --FROM #RptgTemp
-  --ORDER BY [APPT_DTTM]
+  INSERT INTO CLARITY_App.Stage.iQueue_Clinics_Extract
+  (
+      PAT_ENC_CSN_ID_unhashed,PAT_ENC_CSN_ID,PAT_MRN_ID,DEPARTMENT_NAME,DEPT_SPECIALTY_NAME,
+      PROV_ID,PROV_NAME,APPT_DTTM,ENC_REASON_NAME,APPT_NOTES,PRC_NAME,APPT_LENGTH,APPT_STATUS_NAME,
+      APPT_MADE_DTTM,APPT_CANC_DTTM,UPDATE_DATE,SIGNIN_DTTM,BEGIN_CHECKIN_DTTM,CHECKIN_DTTM,
+      Patient_Room,Patient_Room_Recorded_DtTm,Patient_Track,Patient_Track_Recorded_DtTm,
+      ARVL_LIST_REMOVE_DTTM,[AMB PATIENT VERIFIED],[UVA AMB VITALS SIMPLE],ROOMED_DTTM,
+      NURSE_LEAVE_DTTM,PHYS_ENTER_DTTM,[T UVA AMB PATIENT UNDERSTANDING AVS],VISIT_END_DTTM,
+      CHECKOUT_DTTM,TIME_TO_ROOM_MINUTES,TIME_IN_ROOM_MINUTES,CYCLE_TIME_MINUTES,ETL_guid,
+      Load_Dte
+  )
 
   SELECT
-    --ISNULL(CONVERT(VARCHAR(254),[PAT_ENC_CSN_ID]),'')					AS [PAT_ENC_CSN_ID]
-    ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
-   --,PAT_ENC_CSN_ID_unhashed
+    [PAT_ENC_CSN_ID_unhashed]                          -- this will be in the table, but not in the flat file
+   ,ISNULL(CONVERT(VARCHAR(256),[PAT_ENC_CSN_ID],2),'')					AS [PAT_ENC_CSN_ID]
    ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
-   ,ISNULL(CONVERT(VARCHAR(200),[PROV_ID]),'')							AS [PROV_ID]
-   ,ISNULL(CONVERT(VARCHAR(200),[PROV_NAME]),'')						AS [PROV_NAME]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_DTTM],121),'')						AS [APPT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')			AS [ENC_REASON_NAME]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),'')						AS [APPT_NOTES]
+   ,ISNULL(CONVERT(VARCHAR(18),[PROV_ID]),'')							AS [PROV_ID]
+    ,CASE
+       WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
+       ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
+     END                                                                                  AS [PROV_NAME]
+   ,[APPT_DTTM]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
+    ,CASE
+       WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
+       ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
+     END                                                                                  AS [APPT_NOTES]
    ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
-   ,ISNULL(CONVERT(VARCHAR(18),[APPT_LENGTH]),'')						AS [APPT_LENGTH]
+   ,[APPT_LENGTH]
    ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_MADE_DTTM],121),'')				AS [APPT_MADE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[APPT_CANC_DTTM],121),'')				AS [APPT_CANC_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[UPDATE_DATE],121),'')					AS [UPDATE_DATE]
-   ,ISNULL(CONVERT(VARCHAR(19),[SIGNIN_DTTM],121),'')					AS [SIGNIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[BEGIN_CHECKIN_DTTM],121),'')			AS [BEGIN_CHECKIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[CHECKIN_DTTM],121),'')					AS [CHECKIN_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')					AS [Patient_Room]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')					AS [Patient_Room_Recorded_DtTm]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
-   ,ISNULL(CONVERT(VARCHAR(254),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
-   ,ISNULL(CONVERT(VARCHAR(19),[ARVL_LIST_REMOVE_DTTM],121),'')			AS [ARVL_LIST_REMOVE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[AMB PATIENT VERIFIED],121),'')			AS [AMB PATIENT VERIFIED]
-   ,ISNULL(CONVERT(VARCHAR(19),[UVA AMB VITALS SIMPLE],121),'')			AS [UVA AMB VITALS SIMPLE]
-   ,ISNULL(CONVERT(VARCHAR(19),[ROOMED_DTTM],121),'')					AS [ROOMED_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[NURSE_LEAVE_DTTM],121),'')				AS [NURSE_LEAVE_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[PHYS_ENTER_DTTM],121),'')				AS [PHYS_ENTER_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[T UVA AMB PATIENT UNDERSTANDING AVS],121),'')					AS [T UVA AMB PATIENT UNDERSTANDING AVS]
-   ,ISNULL(CONVERT(VARCHAR(19),[VISIT_END_DTTM],121),'')				AS [VISIT_END_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(19),[CHECKOUT_DTTM],121),'')					AS [CHECKOUT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(18),[TIME_TO_ROOM_MINUTES]),'')				AS [TIME_TO_ROOM_MINUTES]
-   ,ISNULL(CONVERT(VARCHAR(18),[TIME_IN_ROOM_MINUTES]),'')				AS [TIME_IN_ROOM_MINUTES]
-   ,ISNULL(CONVERT(VARCHAR(18),[CYCLE_TIME_MINUTES]),'')				AS [CYCLE_TIME_MINUTES]
-   --,ISNULL(CONVERT(CHAR(1),[Linked Appointment Flag]),'')			    AS [Linked Appointment Flag]
+   ,[APPT_MADE_DTTM]
+   ,[APPT_CANC_DTTM]
+   ,[UPDATE_DATE]
+   ,[SIGNIN_DTTM]
+   ,[BEGIN_CHECKIN_DTTM]
+   ,[CHECKIN_DTTM]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room],LEN([Patient_Room])-1)),'')				AS [Patient_Room]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Room_Recorded_DtTm],LEN([Patient_Room_Recorded_DtTm])-1)),'')				AS [Patient_Room_Recorded_DtTm]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track],LEN([Patient_Track])-1)),'')				AS [Patient_Track]
+   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([Patient_Track_Recorded_DtTm],LEN([Patient_Track_Recorded_DtTm])-1)),'')				AS [Patient_Track_Recorded_DtTm]
+   ,[ARVL_LIST_REMOVE_DTTM]
+   ,[AMB PATIENT VERIFIED]
+   ,[UVA AMB VITALS SIMPLE]
+   ,[ROOMED_DTTM]
+   ,[NURSE_LEAVE_DTTM]
+   ,[PHYS_ENTER_DTTM]
+   ,[T UVA AMB PATIENT UNDERSTANDING AVS]
+   ,[VISIT_END_DTTM]
+   ,[CHECKOUT_DTTM]
+   ,[TIME_TO_ROOM_MINUTES]
+   ,[TIME_IN_ROOM_MINUTES]
+   ,[CYCLE_TIME_MINUTES]
    ,[ETL_guid]
-   ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
+   ,[Load_Dte]
   FROM #RptgTemp
-  --WHERE [APPT_STATUS_NAME] IN ('Arrived','Completed')
-  --ORDER BY [APPT_DTTM]
-  --ORDER BY CAST([APPT_DTTM] AS DATE)
-  --       , APPT_STATUS_NAME
-  ORDER BY DEPARTMENT_NAME
-         , APPT_DTTM
-  --ORDER BY [T UVA AMB PATIENT UNDERSTANDING AVS]
-  --ORDER BY PAT_ENC_CSN_ID_unhashed
-  --ORDER BY PROV_NAME
-  --       , DEPARTMENT_NAME
-  --       , APPT_DTTM
-  --ORDER BY PROV_ID
-  --       , DEPARTMENT_NAME
-  --       , APPT_DTTM
-  --ORDER BY APPT_DTTM
-  --       , PAT_ENC_CSN_ID_unhashed
+  ORDER BY [APPT_DTTM]
 
 GO
 

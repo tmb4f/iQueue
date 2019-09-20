@@ -14,8 +14,8 @@ DECLARE @StartDate SMALLDATETIME = NULL
 --SET @EndDate = '1/23/2018 23:59:59'
 --SET @StartDate = '4/17/2018 00:00:00'
 --SET @EndDate = '6/30/2018 23:59:59'
---SET @StartDate = '7/5/2018 00:00:00'
---SET @EndDate = '7/5/2018 23:59:59'
+SET @StartDate = '7/5/2019 00:00:00'
+SET @EndDate = '9/30/2019 23:59:59'
 
 --ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Infusion_Center_Daily]
 --       (
@@ -171,6 +171,7 @@ DROP TABLE #RptgTemp
   WHERE
   (pa.[APPT_DTTM] >= @StartDate AND pa.[APPT_DTTM] <= @EndDate)
    AND (pa.DEPARTMENT_ID IN (10210004))
+   AND pa.PAT_ID = 'Z2819022'
 
   -- Create index for temp table #InfusionPatient
 
@@ -382,7 +383,6 @@ DROP TABLE #RptgTemp
    ,ORDER_MEDINFO.MAR_ADMIN_TYPE_C
    ,ZC_MAR_ADMIN_TYPE.NAME            AS MAR_ADMIN_TYPE_NAME
    --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC.PAT_ID, MAR_ADMIN_INFO.MAR_ENC_CSN ORDER BY MAR_ADMIN_INFO.TAKEN_TIME) AS SeqNbr
-   --,PATIENT.PAT_MRN_ID
   INTO #MAR
   FROM CLARITY.dbo.MAR_ADMIN_INFO                AS MAR_ADMIN_INFO
   LEFT OUTER JOIN CLARITY.dbo.ZC_MAR_RSLT        AS ZC_MAR_RSLT        ON MAR_ADMIN_INFO.MAR_ACTION_C        = ZC_MAR_RSLT.RESULT_C
@@ -405,6 +405,7 @@ DROP TABLE #RptgTemp
     --AND MAR_ADMIN_INFO.INFUSION_RATE IS NOT NULL
     AND MAR_ADMIN_INFO.MAR_ACTION_C <> 100                             -- Due
     AND PAT_ENC.DEPARTMENT_ID = 10210004
+	AND PAT_ENC.PAT_ID = 'Z2819022'
 
   -- Create index for temp table #MAR
 
@@ -412,13 +413,16 @@ DROP TABLE #RptgTemp
 
   --SELECT *
   --FROM #MAR
-  --ORDER BY PAT_MRN_ID
+  --ORDER BY ORDER_MED_ID
+  --        ,SCHEDULED_TIME
 
   -- Create temp table #TreatmentPlan
 
   SELECT
     mar.ORDER_MED_ID
    ,ONC_TREATMENT_PLAN_ORDERS.TREATMENT_PLAN_ID
+   -- ONC_TREATMENT_PLAN_ORDERS.ORDER_ID
+   --,ONC_TREATMENT_PLAN_ORDERS.TREATMENT_PLAN_ID
    ,ONC_TREATMENT_PLAN_ORDERS.PLAN_NAME
    ,ONC_TREATMENT_PLAN_ORDERS.PLAN_PROV_ID
    ,CLARITY_SER.PROV_NAME AS PLAN_PROV_NAME
@@ -427,11 +431,22 @@ DROP TABLE #RptgTemp
 			ORDER_MED_ID
 	    FROM #MAR) mar
   INNER JOIN CLARITY.dbo.V_ONC_TREATMENT_PLAN_ORDERS AS ONC_TREATMENT_PLAN_ORDERS ON ONC_TREATMENT_PLAN_ORDERS.ORDER_ID = mar.ORDER_MED_ID
+  --FROM CLARITY.dbo.V_ONC_TREATMENT_PLAN_ORDERS AS ONC_TREATMENT_PLAN_ORDERS
   LEFT OUTER JOIN CLARITY.dbo.CLARITY_SER AS CLARITY_SER ON ONC_TREATMENT_PLAN_ORDERS.PLAN_PROV_ID = CLARITY_SER.PROV_ID
+  WHERE ONC_TREATMENT_PLAN_ORDERS.PAT_ID = 'Z2819022'
+  AND ONC_TREATMENT_PLAN_ORDERS.ORDER_ID IS NOT NULL
 
   -- Create index for temp table #TreatmentPlan
 
   CREATE UNIQUE CLUSTERED INDEX IX_TreatmentPlan ON #TreatmentPlan ([ORDER_MED_ID])
+  --CREATE UNIQUE CLUSTERED INDEX IX_TreatmentPlan ON #TreatmentPlan ([ORDER_ID], TREATMENT_PLAN_ID)
+
+  --SELECT *
+  --FROM #TreatmentPlan
+  ----ORDER BY ORDER_ID
+  ----       , TREATMENT_PLAN_ID
+  --ORDER BY ORDER_MED_ID
+  --       , TREATMENT_PLAN_ID
 
   -- Create temp table #MARplus
 
@@ -448,6 +463,10 @@ DROP TABLE #RptgTemp
   -- Create index for temp table #MARplus
 
   CREATE UNIQUE CLUSTERED INDEX IX_MARplus ON #MARplus ([MAR_ENC_CSN], [ORDER_MED_ID], [TAKEN_TIME])
+
+  --SELECT *
+  --FROM #MARplus
+  --ORDER BY ORDER_MED_ID
 
   -- Create temp table #Completed
 
@@ -519,6 +538,10 @@ DROP TABLE #RptgTemp
 
   CREATE UNIQUE CLUSTERED INDEX IX_OrderMed ON #OrderMed ([MAR_ENC_CSN], [ORDER_MED_ID], [TAKEN_TIME])
 
+  --SELECT *
+  --FROM #OrderMed
+  --ORDER BY ORDER_MED_ID
+
   -- Create temp table #OrderMedSummary
 
   SELECT PAT_ID
@@ -551,6 +574,11 @@ DROP TABLE #RptgTemp
   -- Create index for temp table #OrderMedSummary
 
   CREATE UNIQUE CLUSTERED INDEX IX_OrderMedSummary ON #OrderMedSummary ([MAR_ENC_CSN])
+
+  SELECT *
+  FROM #OrderMedSummary
+  ORDER BY START_TAKEN_TIME
+         , STOP_TAKEN_TIME
 
   -- Create temp table #FLT
 
@@ -723,15 +751,15 @@ DROP TABLE #RptgTemp
     ,pa.[Appointment Date]
     ,pa.[Appointment Time]
     ,pa.[Check-in Time]
-    ,CAST(flm.[B - Intake] AS SMALLDATETIME) AS [Intake Time]
-    ,CAST(flm.[G- Checked Out] AS SMALLDATETIME) AS [Check-out Time]
+    --,CAST(flm.[B - Intake] AS SMALLDATETIME) AS [Intake Time]
+    --,CAST(flm.[G- Checked Out] AS SMALLDATETIME) AS [Check-out Time]
     ,pa.[Chair Time]
 	,om.PLAN_NAME AS [Treatment Plan]
 	,om.PLAN_PROV_NAME AS [Treatment Plan Provider]
     ,CAST(om.START_TAKEN_TIME AS SMALLDATETIME) AS [First Med Start]
     ,CAST(om.STOP_TAKEN_TIME  AS SMALLDATETIME) AS [Last Med Stop]
-    ,CAST(flt.[BCN INFUSION NURSE ASSIGNMENT] AS SMALLDATETIME) AS [BCN INFUSION NURSE ASSIGNMENT]
-    ,CAST(flt.[T UVA AMB PATIENT UNDERSTANDING AVS] AS SMALLDATETIME) AS [T UVA AMB PATIENT UNDERSTANDING AVS]
+    --,CAST(flt.[BCN INFUSION NURSE ASSIGNMENT] AS SMALLDATETIME) AS [BCN INFUSION NURSE ASSIGNMENT]
+    --,CAST(flt.[T UVA AMB PATIENT UNDERSTANDING AVS] AS SMALLDATETIME) AS [T UVA AMB PATIENT UNDERSTANDING AVS]
     ,pa.[Appointment Made Date]
     ,pa.[Cancel Date]
 	,pa.[Previous Appointment ID unhashed]
@@ -748,17 +776,22 @@ DROP TABLE #RptgTemp
 	                    , STOP_TAKEN_TIME
                    FROM #OrderMedSummary oms) om
   ON om.MAR_ENC_CSN = pa.[Appointment ID unhashed]
-  LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
-                        , [BCN INFUSION NURSE ASSIGNMENT]
-                        , [T UVA AMB PATIENT UNDERSTANDING AVS]
-                   FROM #FLTPIVOT) flt
-  ON flt.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
-  LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
-                        , [B - Intake]
-                        , [G- Checked Out]
-                   FROM #FLMPIVOT) flm
-  ON flm.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
+  --LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
+  --                      , [BCN INFUSION NURSE ASSIGNMENT]
+  --                      , [T UVA AMB PATIENT UNDERSTANDING AVS]
+  --                 FROM #FLTPIVOT) flt
+  --ON flt.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
+  --LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
+  --                      , [B - Intake]
+  --                      , [G- Checked Out]
+  --                 FROM #FLMPIVOT) flm
+  --ON flm.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
 
+SELECT *
+FROM #ScheduledInfusionAppointmentDetail
+WHERE [Appointment Status] <> 'canc'
+ORDER BY [Appointment ID unhashed]
+/*
   -- Create temp table #RptgTemp
 
   SELECT
@@ -871,6 +904,10 @@ DROP TABLE #RptgTemp
    ,ISNULL(CONVERT(VARCHAR(255),[Unit Name]),'')						AS [Unit Name]
    ,ISNULL(CONVERT(VARCHAR(50),[Visit Type]),'')						AS [Visit Type]
    ,ISNULL(CONVERT(VARCHAR(200),[Appointment Type]),'')					AS [Appointment Type]
+   ,ISNULL(CONVERT(VARCHAR(19),[Clinic Appointment Time],121),'')		AS [Clinic Appointment Time]
+   ,ISNULL(CONVERT(VARCHAR(18),[Clinic Appointment Length]),'')			AS [Clinic Appointment Length]
+   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan])+'"'),'|')	AS [Treatment Plan]
+   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan Provider])+'"'),'|') AS [Treatment Plan Provider]
    ,ISNULL(CONVERT(VARCHAR(18),[Expected Duration]),'')					AS [Expected Duration]
    ,ISNULL(CONVERT(VARCHAR(255),[Appointment Status]),'')				AS [Appointment Status]
    ,ISNULL(CONVERT(VARCHAR(19),[Appointment Time],121),'')				AS [Appointment Time]
@@ -883,20 +920,15 @@ DROP TABLE #RptgTemp
    ,ISNULL(CONVERT(VARCHAR(19),CAST([Appointment Made Date] AS SMALLDATETIME),121),'') AS [Appointment Made Date]
    ,ISNULL(CONVERT(VARCHAR(19),CAST([Cancel Date] AS SMALLDATETIME),121),'') AS [Cancel Date]
    ,ISNULL(CONVERT(VARCHAR(18),[Linked Appointment Flag]),'')			AS [Linked Appointment Flag]
-   ,ISNULL(CONVERT(VARCHAR(19),[Clinic Appointment Time],121),'')		AS [Clinic Appointment Time]
-   ,ISNULL(CONVERT(VARCHAR(18),[Clinic Appointment Length]),'')			AS [Clinic Appointment Length]
-   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan])+'"'),'|')	AS [Treatment Plan]
-   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan Provider])+'"'),'|') AS [Treatment Plan Provider]
    ,ISNULL(CONVERT(VARCHAR(19),[Intake Time],121),'')					AS [Intake Time]
    ,ISNULL(CONVERT(VARCHAR(19),[Check-out Time],121),'')				AS [Check-out Time]
    ,ISNULL(CONVERT(VARCHAR(19),[Last Modified Time],121),'')			AS [Last Modified Time]
    ,[ETL_guid]
    ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
   FROM #RptgTemp
-  --ORDER BY [Appointment Time]
-  ORDER BY [PAT_MRN_ID_unhashed]
+  ORDER BY PAT_MRN_ID_unhashed
          , [Appointment Time]
-
+*/
 GO
 
 
