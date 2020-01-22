@@ -1,4 +1,4 @@
-USE [CLARITY_App]
+USE [CLARITY_App_Dev]
 GO
 
 SET ANSI_NULLS ON
@@ -7,14 +7,22 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-DECLARE @StartDate SMALLDATETIME = NULL
-       ,@EndDate SMALLDATETIME = NULL
+-- =====================================================================================
+-- Create procedure uspSrc_iQueue_Infusion_Center_Daily
+-- =====================================================================================
+IF EXISTS (SELECT 1
+    FROM INFORMATION_SCHEMA.ROUTINES 
+    WHERE ROUTINE_SCHEMA='Rptg'
+    AND ROUTINE_TYPE='PROCEDURE'
+    AND ROUTINE_NAME='uspSrc_iQueue_Infusion_Center_Daily')
+   DROP PROCEDURE Rptg.[uspSrc_iQueue_Infusion_Center_Daily]
+GO
 
---ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Infusion_Center_Daily]
---       (
---        @StartDate SMALLDATETIME = NULL
---       ,@EndDate SMALLDATETIME = NULL)
---AS
+CREATE PROCEDURE [Rptg].[uspSrc_iQueue_Infusion_Center_Daily]
+       (
+        @StartDate SMALLDATETIME = NULL
+       ,@EndDate SMALLDATETIME = NULL)
+AS
 /****************************************************************************************************************************************
 WHAT: Create procedure Rptg.uspSrc_iQueue_Infusion_Center_Daily
 WHO : Tom Burgan
@@ -98,60 +106,6 @@ MODS:     10/18/2017--TMB-- Create new stored procedure
       END;
 ----------------------------------------------------
 
-IF OBJECT_ID('tempdb..#InfusionPatient ') IS NOT NULL
-DROP TABLE #InfusionPatient
-
-IF OBJECT_ID('tempdb..#ScheduledAppointment ') IS NOT NULL
-DROP TABLE #ScheduledAppointment
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentPlus ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentPlus
-
-IF OBJECT_ID('tempdb..#ScheduledAppointmentLinked ') IS NOT NULL
-DROP TABLE #ScheduledAppointmentLinked
-
-IF OBJECT_ID('tempdb..#ScheduledInfusionAppointment ') IS NOT NULL
-DROP TABLE #ScheduledInfusionAppointment
-
-IF OBJECT_ID('tempdb..#MAR ') IS NOT NULL
-DROP TABLE #MAR
-
-IF OBJECT_ID('tempdb..#TreatmentPlan ') IS NOT NULL
-DROP TABLE #TreatmentPlan
-
-IF OBJECT_ID('tempdb..#MARplus ') IS NOT NULL
-DROP TABLE #MARplus
-
-IF OBJECT_ID('tempdb..#Completed ') IS NOT NULL
-DROP TABLE #Completed
-
-IF OBJECT_ID('tempdb..#NewBag ') IS NOT NULL
-DROP TABLE #NewBag
-
-IF OBJECT_ID('tempdb..#OrderMed ') IS NOT NULL
-DROP TABLE #OrderMed
-
-IF OBJECT_ID('tempdb..#OrderMedSummary ') IS NOT NULL
-DROP TABLE #OrderMedSummary
-
-IF OBJECT_ID('tempdb..#FLT ') IS NOT NULL
-DROP TABLE #FLT
-
-IF OBJECT_ID('tempdb..#FLM ') IS NOT NULL
-DROP TABLE #FLM
-
-IF OBJECT_ID('tempdb..#FLTPIVOT ') IS NOT NULL
-DROP TABLE #FLTPIVOT
-
-IF OBJECT_ID('tempdb..#FLMPIVOT ') IS NOT NULL
-DROP TABLE #FLMPIVOT
-
-IF OBJECT_ID('tempdb..#ScheduledInfusionAppointmentDetail ') IS NOT NULL
-DROP TABLE #ScheduledInfusionAppointmentDetail
-
-IF OBJECT_ID('tempdb..#RptgTemp ') IS NOT NULL
-DROP TABLE #RptgTemp
-
   -- Create temp table #InfusionPatient with PAT_ID and Appt date
 
   SELECT DISTINCT
@@ -168,13 +122,12 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #InfusionPatient
 
-  CREATE UNIQUE CLUSTERED INDEX IX_InfusionPaitent ON #InfusionPatient ([PAT_ID], [Appt date])
+  CREATE UNIQUE CLUSTERED INDEX IX_InfusionPatient ON #InfusionPatient ([PAT_ID], [Appt date])
 
   -- Create temp table #ScheduledAppointment
 
   SELECT
      pa.PAT_ENC_CSN_ID                               AS [Appointment ID]
-    ,inf.PAT_MRN_ID									 AS [PAT_MRN_ID_unhashed]
 	,HASHBYTES('SHA2_256',CAST(inf.PAT_MRN_ID AS VARCHAR(10))) AS [PAT_MRN_ID]
     ,dep.DEPARTMENT_NAME                             AS [Unit Name]
     ,pa.DEPT_SPECIALTY_NAME                          AS [Visit Type]
@@ -217,7 +170,6 @@ DROP TABLE #RptgTemp
 
   SELECT
      pa.[Appointment ID]
-	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
     ,pa.[Unit Name]
     ,pa.[Visit Type]
@@ -256,7 +208,6 @@ DROP TABLE #RptgTemp
 
   SELECT
      apptplus.[Appointment ID]
-	,apptplus.PAT_MRN_ID_unhashed
 	,apptplus.PAT_MRN_ID
     ,apptplus.[Unit Name]
     ,apptplus.[Visit Type]
@@ -294,7 +245,6 @@ DROP TABLE #RptgTemp
 
   SELECT
      pa.[Appointment ID]
-	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
     ,pa.[Unit Name]
     ,pa.[Visit Type]
@@ -683,7 +633,6 @@ DROP TABLE #RptgTemp
   SELECT
      pa.PAT_ID
     ,pa.[Appointment ID]
-	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
     ,pa.[Unit Name]
     ,pa.[Visit Type]
@@ -732,7 +681,6 @@ DROP TABLE #RptgTemp
 
   SELECT
      A.[Appointment ID]
-	,A.PAT_MRN_ID_unhashed
 	,A.[PAT_MRN_ID]
     ,A.[Unit Name]
     ,A.[Visit Type]
@@ -762,7 +710,6 @@ DROP TABLE #RptgTemp
    (
     SELECT
        [Appointment ID]
-	  ,PAT_MRN_ID_unhashed
 	  ,[PAT_MRN_ID]
       ,[Unit Name]
       ,[Visit Type]
@@ -791,78 +738,42 @@ DROP TABLE #RptgTemp
 
   -- Put contents of temp table #RptgTemp into db table
 
-  --INSERT INTO CLARITY_App.Stage.iQueue_Infusion_Extract
-  --            ([Appointment ID],[PAT_MRN_ID],[Unit Name],[Visit Type],[Appointment Type],[Expected Duration],[Appointment Status],
-  --             [Appointment Time],[Check-in Time],[Chair Time],[First Med Start],[Last Med Stop],
-  --             [BCN INFUSION NURSE ASSIGNMENT],[T UVA AMB PATIENT UNDERSTANDING AVS],[Appointment Made Date],[Cancel Date],[Linked Appointment Flag],
-  --             [Clinic Appointment Time],[Clinic Appointment Length],[Treatment Plan],[Treatment Plan Provider],
-		--	   [Intake Time],[Check-out Time],[UPDATE_DATE],[ETL_guid],[Load_Dte])
-
-  --SELECT
-  --  [Appointment ID]
-  -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')					AS [PAT_MRN_ID]
-  -- ,[Unit Name]
-  -- ,[Visit Type]
-  -- ,[Appointment Type]
-  -- ,[Expected Duration]
-  -- ,[Appointment Status]
-  -- ,[Appointment Time]
-  -- ,[Check-in Time]
-  -- ,[Chair Time]
-  -- ,[First Med Start]
-  -- ,[Last Med Stop]
-  -- ,[BCN INFUSION NURSE ASSIGNMENT]
-  -- ,[T UVA AMB PATIENT UNDERSTANDING AVS]
-  -- ,[Appointment Made Date]
-  -- ,[Cancel Date]
-  -- ,[Linked Appointment Flag]
-  -- ,[Clinic Appointment Time]
-  -- ,[Clinic Appointment Length]
-  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan]),'|'),1,200)         AS [Treatment Plan]
-  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan Provider]),'|'),1,18) AS [Treatment Plan Provider]
-  -- ,[Intake Time]
-  -- ,[Check-out Time]
-  -- ,[UPDATE_DATE]
-  -- ,[ETL_guid]
-  -- ,[Load_Dte]
-  --FROM #RptgTemp
-  --ORDER BY [Appointment Time]
+  INSERT INTO CLARITY_App_Dev.Stage.iQueue_Infusion_Extract
+              ([Appointment ID],[PAT_MRN_ID],[Unit Name],[Visit Type],[Appointment Type],[Expected Duration],[Appointment Status],
+               [Appointment Time],[Check-in Time],[Chair Time],[First Med Start],[Last Med Stop],
+               [BCN INFUSION NURSE ASSIGNMENT],[T UVA AMB PATIENT UNDERSTANDING AVS],[Appointment Made Date],[Cancel Date],[Linked Appointment Flag],
+               [Clinic Appointment Time],[Clinic Appointment Length],[Treatment Plan],[Treatment Plan Provider],
+			   [Intake Time],[Check-out Time],[UPDATE_DATE],[ETL_guid],[Load_Dte])
 
   SELECT
-    ISNULL(CONVERT(VARCHAR(18),[Appointment ID]),'')					AS [Appointment ID]
-    --ISNULL(CONVERT(VARCHAR(256),[Appointment ID],2),'')					AS [Appointment ID]
-   --,[Appointment ID unhashed]
-    --ISNULL(CONVERT(VARCHAR(18),[Appointment ID unhashed]),'')			AS [Appointment ID]
-   ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
-   --,PAT_MRN_ID_unhashed
-   ,ISNULL(CONVERT(VARCHAR(255),[Unit Name]),'')						AS [Unit Name]
-   ,ISNULL(CONVERT(VARCHAR(50),[Visit Type]),'')						AS [Visit Type]
-   ,ISNULL(CONVERT(VARCHAR(200),[Appointment Type]),'')					AS [Appointment Type]
-   ,ISNULL(CONVERT(VARCHAR(18),[Expected Duration]),'')					AS [Expected Duration]
-   ,ISNULL(CONVERT(VARCHAR(255),[Appointment Status]),'')				AS [Appointment Status]
-   ,ISNULL(CONVERT(VARCHAR(19),[Appointment Time],121),'')				AS [Appointment Time]
-   ,ISNULL(CONVERT(VARCHAR(19),[Check-in Time],121),'')					AS [Check-in Time]
-   ,ISNULL(CONVERT(VARCHAR(19),[Chair Time],121),'')					AS [Chair Time]
-   ,ISNULL(CONVERT(VARCHAR(19),[First Med Start],121),'')				AS [First Med Start]
-   ,ISNULL(CONVERT(VARCHAR(19),[Last Med Stop],121),'')					AS [Last Med Stop]
-   ,ISNULL(CONVERT(VARCHAR(19),[BCN INFUSION NURSE ASSIGNMENT],121),'')	AS [BCN INFUSION NURSE ASSIGNMENT]
-   ,ISNULL(CONVERT(VARCHAR(19),[T UVA AMB PATIENT UNDERSTANDING AVS],121),'') AS [T UVA AMB PATIENT UNDERSTANDING AVS]
-   ,ISNULL(CONVERT(VARCHAR(19),CAST([Appointment Made Date] AS SMALLDATETIME),121),'') AS [Appointment Made Date]
-   ,ISNULL(CONVERT(VARCHAR(19),CAST([Cancel Date] AS SMALLDATETIME),121),'') AS [Cancel Date]
-   ,ISNULL(CONVERT(VARCHAR(18),[Linked Appointment Flag]),'')			AS [Linked Appointment Flag]
-   ,ISNULL(CONVERT(VARCHAR(19),[Clinic Appointment Time],121),'')		AS [Clinic Appointment Time]
-   ,ISNULL(CONVERT(VARCHAR(18),[Clinic Appointment Length]),'')			AS [Clinic Appointment Length]
-   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan])+'"'),'|')	AS [Treatment Plan]
-   ,ISNULL(CONVERT(VARCHAR(255),'"'+RTRIM([Treatment Plan Provider])+'"'),'|') AS [Treatment Plan Provider]
-   ,ISNULL(CONVERT(VARCHAR(19),[Intake Time],121),'')					AS [Intake Time]
-   ,ISNULL(CONVERT(VARCHAR(19),[Check-out Time],121),'')				AS [Check-out Time]
-   ,ISNULL(CONVERT(VARCHAR(19),[UPDATE_DATE],121),'')					AS [UPDATE_DATE]
+    [Appointment ID]
+   ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')					AS [PAT_MRN_ID]
+   ,[Unit Name]
+   ,[Visit Type]
+   ,[Appointment Type]
+   ,[Expected Duration]
+   ,[Appointment Status]
+   ,[Appointment Time]
+   ,[Check-in Time]
+   ,[Chair Time]
+   ,[First Med Start]
+   ,[Last Med Stop]
+   ,[BCN INFUSION NURSE ASSIGNMENT]
+   ,[T UVA AMB PATIENT UNDERSTANDING AVS]
+   ,[Appointment Made Date]
+   ,[Cancel Date]
+   ,[Linked Appointment Flag]
+   ,[Clinic Appointment Time]
+   ,[Clinic Appointment Length]
+   ,SUBSTRING(ISNULL(RTRIM([Treatment Plan]),'|'),1,200)         AS [Treatment Plan]
+   ,SUBSTRING(ISNULL(RTRIM([Treatment Plan Provider]),'|'),1,18) AS [Treatment Plan Provider]
+   ,[Intake Time]
+   ,[Check-out Time]
+   ,[UPDATE_DATE]
    ,[ETL_guid]
-   ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
+   ,[Load_Dte]
   FROM #RptgTemp
-  --ORDER BY [Appointment Time]
-  ORDER BY [PAT_MRN_ID_unhashed]
-         , [Appointment Time]
+  ORDER BY [Appointment Time]
 
 GO
 

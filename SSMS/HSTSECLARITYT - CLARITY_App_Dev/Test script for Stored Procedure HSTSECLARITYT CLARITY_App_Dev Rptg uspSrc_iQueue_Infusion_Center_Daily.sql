@@ -1,4 +1,13 @@
-USE [CLARITY_App]
+USE [CLARITY_App_Dev]
+GO
+-- ===========================================
+-- Truncate table Stage.iQueue_Infusion_Extract
+-- ===========================================
+IF EXISTS (SELECT TABLE_NAME 
+	       FROM   INFORMATION_SCHEMA.TABLES
+	       WHERE  TABLE_SCHEMA = N'Stage' AND
+	              TABLE_NAME = N'iQueue_Infusion_Extract')
+   TRUNCATE TABLE [Stage].[iQueue_Infusion_Extract]
 GO
 
 SET ANSI_NULLS ON
@@ -9,6 +18,15 @@ GO
 
 DECLARE @StartDate SMALLDATETIME = NULL
        ,@EndDate SMALLDATETIME = NULL
+
+--SET @StartDate = '8/1/2017 00:00:00'
+--SET @EndDate = '1/23/2018 23:59:59'
+--SET @StartDate = '4/17/2018 00:00:00'
+--SET @EndDate = '6/30/2018 23:59:59'
+SET @StartDate = '7/1/2019 00:00:00'
+--SET @EndDate = '10/15/2019 23:59:59'
+--SET @StartDate = '7/5/2018 00:00:00'
+--SET @EndDate = '7/5/2018 23:59:59'
 
 --ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Infusion_Center_Daily]
 --       (
@@ -173,9 +191,11 @@ DROP TABLE #RptgTemp
   -- Create temp table #ScheduledAppointment
 
   SELECT
-     pa.PAT_ENC_CSN_ID                               AS [Appointment ID]
+     pa.PAT_ENC_CSN_ID                               AS [Appointment ID unhashed]
+	,HASHBYTES('SHA2_256',CAST(enc.PAT_ENC_CSN_ID AS VARCHAR(18))) AS [Appointment ID]
     ,inf.PAT_MRN_ID									 AS [PAT_MRN_ID_unhashed]
 	,HASHBYTES('SHA2_256',CAST(inf.PAT_MRN_ID AS VARCHAR(10))) AS [PAT_MRN_ID]
+     --pa.PAT_ENC_CSN_ID                               AS [Appointment ID]
     ,dep.DEPARTMENT_NAME                             AS [Unit Name]
     ,pa.DEPT_SPECIALTY_NAME                          AS [Visit Type]
     ,pa.PRC_NAME                                     AS [Appointment Type]
@@ -216,7 +236,8 @@ DROP TABLE #RptgTemp
   -- Create temp table #ScheduledAppointmentPlus
 
   SELECT
-     pa.[Appointment ID]
+     pa.[Appointment ID unhashed]
+	,pa.[Appointment ID]
 	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
     ,pa.[Unit Name]
@@ -255,7 +276,8 @@ DROP TABLE #RptgTemp
   -- Create temp table #ScheduledAppointmentLinked
 
   SELECT
-     apptplus.[Appointment ID]
+     apptplus.[Appointment ID unhashed]
+	,apptplus.[Appointment ID]
 	,apptplus.PAT_MRN_ID_unhashed
 	,apptplus.PAT_MRN_ID
     ,apptplus.[Unit Name]
@@ -269,6 +291,9 @@ DROP TABLE #RptgTemp
     ,apptplus.[Chair Time]
     ,apptplus.[Appointment Made Date]
     ,apptplus.[Cancel Date]
+    ,CASE WHEN ((apptplus.SeqNbr = 1) OR ((apptplus.SeqNbr > 1) AND (apptplus.[Previous RecordId] IS NULL))) THEN NULL
+          ELSE appt.[Appointment ID unhashed]
+     END AS [Previous Appointment ID unhashed]
     ,CASE WHEN ((apptplus.SeqNbr = 1) OR ((apptplus.SeqNbr > 1) AND (apptplus.[Previous RecordId] IS NULL))) THEN NULL
           ELSE appt.[Appointment ID]
      END AS [Previous Appointment ID]
@@ -288,12 +313,13 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #ScheduledAppointmentLinked
 
-  CREATE UNIQUE CLUSTERED INDEX IX_ScheduledAppointmentLinked ON #ScheduledAppointmentLinked ([PAT_ID], [Appointment ID], [Appointment Time])
+  CREATE UNIQUE CLUSTERED INDEX IX_ScheduledAppointmentLinked ON #ScheduledAppointmentLinked ([PAT_ID], [Appointment ID unhashed], [Appointment Time])
 
   -- Create temp table #ScheduledInfusionAppointment
 
   SELECT
-     pa.[Appointment ID]
+     pa.[Appointment ID unhashed]
+	,pa.[Appointment ID]
 	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
     ,pa.[Unit Name]
@@ -307,6 +333,7 @@ DROP TABLE #RptgTemp
     ,pa.[Chair Time]
     ,pa.[Appointment Made Date]
     ,pa.[Cancel Date]
+	,pa.[Previous Appointment ID unhashed]
     ,pa.[Previous Appointment ID]
     ,pa.[Previous Appointment Time]
     ,pa.[Previous Expected Duration]
@@ -320,7 +347,7 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #ScheduledInfusionAppointment
 
-  CREATE UNIQUE CLUSTERED INDEX IX_ScheduledInfusionAppointment ON #ScheduledInfusionAppointment ([PAT_ID], [Appointment ID], [Appointment Time])
+  CREATE UNIQUE CLUSTERED INDEX IX_ScheduledInfusionAppointment ON #ScheduledInfusionAppointment ([PAT_ID], [Appointment ID unhashed], [Appointment Time])
 
   -- Create temp table #MAR
 
@@ -367,6 +394,7 @@ DROP TABLE #RptgTemp
    ,ORDER_MEDINFO.MAR_ADMIN_TYPE_C
    ,ZC_MAR_ADMIN_TYPE.NAME            AS MAR_ADMIN_TYPE_NAME
    --, ROW_NUMBER() OVER (PARTITION BY PAT_ENC.PAT_ID, MAR_ADMIN_INFO.MAR_ENC_CSN ORDER BY MAR_ADMIN_INFO.TAKEN_TIME) AS SeqNbr
+   --,PATIENT.PAT_MRN_ID
   INTO #MAR
   FROM CLARITY.dbo.MAR_ADMIN_INFO                AS MAR_ADMIN_INFO
   LEFT OUTER JOIN CLARITY.dbo.ZC_MAR_RSLT        AS ZC_MAR_RSLT        ON MAR_ADMIN_INFO.MAR_ACTION_C        = ZC_MAR_RSLT.RESULT_C
@@ -393,6 +421,10 @@ DROP TABLE #RptgTemp
   -- Create index for temp table #MAR
 
   CREATE UNIQUE CLUSTERED INDEX IX_MAR ON #MAR ([ORDER_MED_ID], [TAKEN_TIME])
+
+  --SELECT *
+  --FROM #MAR
+  --ORDER BY PAT_MRN_ID
 
   -- Create temp table #TreatmentPlan
 
@@ -535,7 +567,8 @@ DROP TABLE #RptgTemp
   -- Create temp table #FLT
 
   SELECT DISTINCT
-     appt.[Appointment ID]
+     appt.[Appointment ID unhashed]
+    --,appt.[Appointment ID]
     ,appt.PAT_ID
     ,appt.INPATIENT_DATA_ID
     ,flt.RECORDED_TIME
@@ -543,10 +576,11 @@ DROP TABLE #RptgTemp
     ,flt.FLO_MEAS_ID
 	,flt.TEMPLATE_NAME
     ,flt.MEAS_VALUE
-    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID], flt.FLT_ID ORDER BY flt.RECORDED_TIME) AS SeqNbr
+    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID unhashed], flt.FLT_ID ORDER BY flt.RECORDED_TIME) AS SeqNbr
   INTO #FLT
   FROM (SELECT DISTINCT
-               [Appointment ID]
+               [Appointment ID unhashed]
+             --, [Appointment ID]
              , PAT_ID
              , INPATIENT_DATA_ID
         FROM #ScheduledInfusionAppointment) appt
@@ -572,24 +606,26 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #FLT
 
-  CREATE UNIQUE CLUSTERED INDEX IX_FLT ON #FLT ([Appointment ID], FLT_ID, SeqNbr)
+  CREATE UNIQUE CLUSTERED INDEX IX_FLT ON #FLT ([Appointment ID unhashed], FLT_ID, SeqNbr)
 
   -- Create temp table #FLM
 
   SELECT DISTINCT
-     appt.[Appointment ID]
+     appt.[Appointment ID unhashed]
+    --,appt.[Appointment ID]
     ,appt.PAT_ID
     ,appt.INPATIENT_DATA_ID
     ,flm.RECORDED_TIME
     ,flm.FLO_MEAS_ID
     ,flm.MEAS_VALUE
-    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID], flm.FLO_MEAS_ID, flm.MEAS_VALUE ORDER BY flm.RECORDED_TIME) AS SeqNbrAsc
-    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID], flm.FLO_MEAS_ID, flm.MEAS_VALUE ORDER BY flm.RECORDED_TIME DESC) AS SeqNbrDesc
-	,COUNT(flm.MEAS_VALUE) over(partition by appt.PAT_ID, appt.[Appointment ID]) as Meas_Count
-	,COUNT(*) over(partition by appt.PAT_ID, appt.[Appointment ID], flm.MEAS_VALUE) as Meas_Value_Count
+    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID unhashed], flm.FLO_MEAS_ID, flm.MEAS_VALUE ORDER BY flm.RECORDED_TIME) AS SeqNbrAsc
+    ,ROW_NUMBER() OVER (PARTITION BY appt.PAT_ID, appt.[Appointment ID unhashed], flm.FLO_MEAS_ID, flm.MEAS_VALUE ORDER BY flm.RECORDED_TIME DESC) AS SeqNbrDesc
+	,COUNT(flm.MEAS_VALUE) over(partition by appt.PAT_ID, appt.[Appointment ID unhashed]) as Meas_Count
+	,COUNT(*) over(partition by appt.PAT_ID, appt.[Appointment ID unhashed], flm.MEAS_VALUE) as Meas_Value_Count
   INTO #FLM
   FROM (SELECT DISTINCT
-               [Appointment ID]
+               [Appointment ID unhashed]
+             --, [Appointment ID]
              , PAT_ID
              , INPATIENT_DATA_ID
         FROM #ScheduledInfusionAppointment) appt
@@ -607,7 +643,7 @@ DROP TABLE #RptgTemp
                       AND fm.MEAS_VALUE IN ('B - Intake','G- Checked Out'))
              ) flm
   ON appt.INPATIENT_DATA_ID = flm.INPATIENT_DATA_ID
-  ORDER BY appt.[Appointment ID], flm.FLO_MEAS_ID, flm.MEAS_VALUE, flm.RECORDED_TIME
+  ORDER BY appt.[Appointment ID unhashed], flm.FLO_MEAS_ID, flm.MEAS_VALUE, flm.RECORDED_TIME
 
   -- Create index for temp table #FLM
 
@@ -618,13 +654,15 @@ DROP TABLE #RptgTemp
 
   SELECT
      PAT_ID
-   , [Appointment ID]
+   , [Appointment ID unhashed]
+   --, [Appointment ID]
    , [1150000005] AS [BCN INFUSION NURSE ASSIGNMENT]
    , [2103800001] AS [T UVA AMB PATIENT UNDERSTANDING AVS]
   INTO #FLTPIVOT
   FROM
   (SELECT PAT_ID
-        , [Appointment ID]
+        , [Appointment ID unhashed]
+        --, [Appointment ID]
         , FLT_ID
 		, RECORDED_TIME
    FROM #FLT
@@ -639,19 +677,21 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #FLTPIVOT
 
-  CREATE UNIQUE CLUSTERED INDEX IX_FLTPIVOT ON #FLTPIVOT ([Appointment ID])
+  CREATE UNIQUE CLUSTERED INDEX IX_FLTPIVOT ON #FLTPIVOT ([Appointment ID unhashed])
 
   -- Create temp table #FLMPIVOT
 
   SELECT
      PAT_ID
-   , [Appointment ID]
+   , [Appointment ID unhashed]
+   --, [Appointment ID]
    , [B - Intake] AS [B - Intake]
    , [G- Checked Out] AS [G- Checked Out]
   INTO #FLMPIVOT
   FROM
   (SELECT PAT_ID
-        , [Appointment ID]
+        , [Appointment ID unhashed]
+        --, [Appointment ID]
         , MEAS_VALUE
 		, RECORDED_TIME
    FROM #FLM
@@ -659,7 +699,8 @@ DROP TABLE #RptgTemp
    AND SeqNbrAsc = 1
    UNION ALL
    SELECT PAT_ID
-        , [Appointment ID]
+        , [Appointment ID unhashed]
+        --, [Appointment ID]
         , MEAS_VALUE
 		, RECORDED_TIME
    FROM #FLM
@@ -676,12 +717,13 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #FLMPIVOT
 
-  CREATE UNIQUE CLUSTERED INDEX IX_FLMPIVOT ON #FLMPIVOT ([Appointment ID])
+  CREATE UNIQUE CLUSTERED INDEX IX_FLMPIVOT ON #FLMPIVOT ([Appointment ID unhashed])
 
   -- Create temp table #ScheduledInfusionAppointmentDetail
 
   SELECT
      pa.PAT_ID
+	,pa.[Appointment ID unhashed]
     ,pa.[Appointment ID]
 	,pa.PAT_MRN_ID_unhashed
 	,pa.PAT_MRN_ID
@@ -704,6 +746,7 @@ DROP TABLE #RptgTemp
     ,CAST(flt.[T UVA AMB PATIENT UNDERSTANDING AVS] AS SMALLDATETIME) AS [T UVA AMB PATIENT UNDERSTANDING AVS]
     ,pa.[Appointment Made Date]
     ,pa.[Cancel Date]
+	,pa.[Previous Appointment ID unhashed]
     ,pa.[Previous Appointment ID]
     ,pa.[Previous Appointment Time]
     ,pa.[Previous Expected Duration]
@@ -716,24 +759,25 @@ DROP TABLE #RptgTemp
                         , START_TAKEN_TIME
 	                    , STOP_TAKEN_TIME
                    FROM #OrderMedSummary oms) om
-  ON om.MAR_ENC_CSN = pa.[Appointment ID]
-  LEFT OUTER JOIN (SELECT [Appointment ID]
+  ON om.MAR_ENC_CSN = pa.[Appointment ID unhashed]
+  LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
                         , [BCN INFUSION NURSE ASSIGNMENT]
                         , [T UVA AMB PATIENT UNDERSTANDING AVS]
                    FROM #FLTPIVOT) flt
-  ON flt.[Appointment ID] = pa.[Appointment ID]
-  LEFT OUTER JOIN (SELECT [Appointment ID]
+  ON flt.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
+  LEFT OUTER JOIN (SELECT [Appointment ID unhashed]
                         , [B - Intake]
                         , [G- Checked Out]
                    FROM #FLMPIVOT) flm
-  ON flm.[Appointment ID] = pa.[Appointment ID]
+  ON flm.[Appointment ID unhashed] = pa.[Appointment ID unhashed]
 
   -- Create temp table #RptgTemp
 
   SELECT
-     A.[Appointment ID]
+     A.[Appointment ID unhashed]
+    ,A.[Appointment ID]
 	,A.PAT_MRN_ID_unhashed
-	,A.[PAT_MRN_ID]
+	,A.PAT_MRN_ID
     ,A.[Unit Name]
     ,A.[Visit Type]
     ,A.[Appointment Type]
@@ -761,7 +805,8 @@ DROP TABLE #RptgTemp
   INTO #RptgTemp FROM
    (
     SELECT
-       [Appointment ID]
+	   [Appointment ID unhashed]
+      ,[Appointment ID]
 	  ,PAT_MRN_ID_unhashed
 	  ,[PAT_MRN_ID]
       ,[Unit Name]
@@ -780,7 +825,7 @@ DROP TABLE #RptgTemp
       ,[T UVA AMB PATIENT UNDERSTANDING AVS]
       ,[Appointment Made Date]
       ,[Cancel Date]
-      ,CASE WHEN [Previous Appointment ID] IS NULL THEN 'N' ELSE 'Y' END AS [Linked Appointment Flag]
+      ,CASE WHEN [pa].[Previous Appointment ID unhashed] IS NULL THEN 'N' ELSE 'Y' END AS [Linked Appointment Flag]
       ,[Previous Appointment Time]         AS [Clinic Appointment Time]
       ,[Previous Expected Duration]        AS [Clinic Appointment Length]
 	  ,[Treatment Plan]
@@ -791,7 +836,7 @@ DROP TABLE #RptgTemp
 
   -- Put contents of temp table #RptgTemp into db table
 
-  --INSERT INTO CLARITY_App.Stage.iQueue_Infusion_Extract
+  --INSERT INTO Stage.iQueue_Infusion_Extract
   --            ([Appointment ID],[PAT_MRN_ID],[Unit Name],[Visit Type],[Appointment Type],[Expected Duration],[Appointment Status],
   --             [Appointment Time],[Check-in Time],[Chair Time],[First Med Start],[Last Med Stop],
   --             [BCN INFUSION NURSE ASSIGNMENT],[T UVA AMB PATIENT UNDERSTANDING AVS],[Appointment Made Date],[Cancel Date],[Linked Appointment Flag],
@@ -799,7 +844,7 @@ DROP TABLE #RptgTemp
 		--	   [Intake Time],[Check-out Time],[UPDATE_DATE],[ETL_guid],[Load_Dte])
 
   --SELECT
-  --  [Appointment ID]
+  --  [Appointment ID unhashed]
   -- ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')					AS [PAT_MRN_ID]
   -- ,[Unit Name]
   -- ,[Visit Type]
@@ -818,8 +863,8 @@ DROP TABLE #RptgTemp
   -- ,[Linked Appointment Flag]
   -- ,[Clinic Appointment Time]
   -- ,[Clinic Appointment Length]
-  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan]),'|'),1,200)         AS [Treatment Plan]
-  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan Provider]),'|'),1,18) AS [Treatment Plan Provider]
+  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan]),'|'),1,200)			AS [Treatment Plan]
+  -- ,SUBSTRING(ISNULL(RTRIM([Treatment Plan Provider]),'|'),1,18)	AS [Treatment Plan Provider]
   -- ,[Intake Time]
   -- ,[Check-out Time]
   -- ,[UPDATE_DATE]
@@ -829,10 +874,10 @@ DROP TABLE #RptgTemp
   --ORDER BY [Appointment Time]
 
   SELECT
-    ISNULL(CONVERT(VARCHAR(18),[Appointment ID]),'')					AS [Appointment ID]
+    --ISNULL(CONVERT(VARCHAR(18),[Appointment ID]),'')					AS [Appointment ID]
     --ISNULL(CONVERT(VARCHAR(256),[Appointment ID],2),'')					AS [Appointment ID]
    --,[Appointment ID unhashed]
-    --ISNULL(CONVERT(VARCHAR(18),[Appointment ID unhashed]),'')			AS [Appointment ID]
+    ISNULL(CONVERT(VARCHAR(18),[Appointment ID unhashed]),'')			AS [Appointment ID]
    ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
    --,PAT_MRN_ID_unhashed
    ,ISNULL(CONVERT(VARCHAR(255),[Unit Name]),'')						AS [Unit Name]
