@@ -63,6 +63,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							Change EOD lag date to -3 days.
 		  05/29/2019--TMB-- Add PROV_ID to extract.
 		                    Add PROV_IDs to WHERE statement that defines pilot visit population
+		  01/28/2029--TMB-- Convert commas in ENC_REASON_NAME to ^ symbol.
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -865,13 +866,16 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
     ,CASE
        WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
        ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
-     END                                                                                  AS [PROV_NAME]
+     END                                                                AS [PROV_NAME]
    ,[APPT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
+   ,CASE
+      WHEN CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)) IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),',','^') AS VARCHAR(1200))
+    END                                                                 AS [ENC_REASON_NAME]
     ,CASE
        WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
        ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
-     END                                                                                  AS [APPT_NOTES]
+     END                                                                AS [APPT_NOTES]
    ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
    ,[APPT_LENGTH]
    ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]

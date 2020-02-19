@@ -15,8 +15,8 @@ DECLARE @StartDate SMALLDATETIME = NULL
 --SET @StartDate = '8/1/2019 00:00 AM'
 --SET @EndDate = '12/13/2019 11:59 PM'
 --SET @EndDate = '4/6/2018 11:59 PM'
---SET @StartDate = '5/11/2019 00:00 AM'
---SET @EndDate = '5/13/2019 11:59 PM'
+SET @StartDate = '8/1/2018 00:00 AM'
+SET @EndDate = '1/28/2020 11:59 PM'
 
 --ALTER PROCEDURE [Rptg].[uspSrc_iQueue_Clinics_Status_Board_Daily]
 --       (
@@ -69,6 +69,7 @@ INFO:
                 CLARITY_App.Stage.iQueue_Clinics_Status_Board_Extract
 ----------------------------------------------------------------------------------------------------------------------------------------
 MODS:     11/05/2019--TMB-- Create new stored procedure
+		  12/13/2019--TMB-- Edit reporting period, convert commas in enumerated strings
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -652,20 +653,32 @@ AND ievevent.EVENT_TYPE IN
        ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
      END                                                                                  AS [APPT_NOTES]*/
    --,ISNULL(CONVERT(VARCHAR(254),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)),'')			AS [INFECTION_STATUS]
+   --,CASE
+   --   WHEN CONVERT(VARCHAR(254),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
+   --   ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)),',','^') AS VARCHAR(254))
+   -- END                                                                 AS [INFECTION_STATUS]
    ,CASE
-      WHEN CONVERT(VARCHAR(254),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
-      ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)),',','^') AS VARCHAR(254))
+      WHEN CONVERT(VARCHAR(1200),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)) IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE(CONVERT(VARCHAR(1200),LEFT([INFECTION_NAMES],LEN([INFECTION_NAMES])-1)),',','^') AS VARCHAR(1200))
     END                                                                 AS [INFECTION_STATUS]
    --,ISNULL(CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),'')						AS [APPT_NOTES]
+   --,CASE
+   --   WHEN CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
+   --   ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),',','^') AS VARCHAR(254))
+   -- END                                                                 AS [APPT_NOTES]
    ,CASE
-      WHEN CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
-      ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),',','^') AS VARCHAR(254))
+      WHEN CONVERT(VARCHAR(1200),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)) IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE(CONVERT(VARCHAR(1200),LEFT([APPT_NOTES],LEN([APPT_NOTES])-1)),',','^') AS VARCHAR(1200))
     END                                                                 AS [APPT_NOTES]
    ,ISNULL(CONVERT(VARCHAR(19),[EVENT_TIME_iev],121),'')				AS [EVENT_DTTM]
    --,ISNULL(CONVERT(VARCHAR(254),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)),'')					  AS [VISIT_FLOW_COMMENTS]
+   --,CASE
+   --   WHEN CONVERT(VARCHAR(254),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
+   --   ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)),',','^') AS VARCHAR(254))
+   -- END                                                                 AS [VISIT_FLOW_COMMENTS]
    ,CASE
-      WHEN CONVERT(VARCHAR(254),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)) IS NULL THEN CAST(''  AS VARCHAR(254))
-      ELSE CAST(REPLACE(CONVERT(VARCHAR(254),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)),',','^') AS VARCHAR(254))
+      WHEN CONVERT(VARCHAR(1200),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)) IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE(CONVERT(VARCHAR(1200),LEFT([SDE_VALUES],LEN([SDE_VALUES])-1)),',','^') AS VARCHAR(1200))
     END                                                                 AS [VISIT_FLOW_COMMENTS]
    ,ISNULL(CONVERT(VARCHAR(200),[PRIMARY_LANGUAGE]),'')					AS [PRIMARY_LANGUAGE]
    ,ISNULL(CONVERT(VARCHAR(254),[Interpreter Assignment]),'')			AS [INTERPRETER_ASSIGNMENT]
