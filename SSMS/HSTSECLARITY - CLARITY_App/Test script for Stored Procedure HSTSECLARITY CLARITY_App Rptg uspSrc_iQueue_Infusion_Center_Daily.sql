@@ -168,7 +168,7 @@ DROP TABLE #RptgTemp
 
   -- Create index for temp table #InfusionPatient
 
-  CREATE UNIQUE CLUSTERED INDEX IX_InfusionPaitent ON #InfusionPatient ([PAT_ID], [Appt date])
+  CREATE UNIQUE CLUSTERED INDEX IX_InfusionPatient ON #InfusionPatient ([PAT_ID], [Appt date])
 
   -- Create temp table #ScheduledAppointment
 
@@ -834,7 +834,7 @@ DROP TABLE #RptgTemp
    --,[Appointment ID unhashed]
     --ISNULL(CONVERT(VARCHAR(18),[Appointment ID unhashed]),'')			AS [Appointment ID]
    ,ISNULL(CONVERT(VARCHAR(256),[PAT_MRN_ID],2),'')						AS [PAT_MRN_ID]
-   --,PAT_MRN_ID_unhashed
+   ,PAT_MRN_ID_unhashed
    ,ISNULL(CONVERT(VARCHAR(255),[Unit Name]),'')						AS [Unit Name]
    ,ISNULL(CONVERT(VARCHAR(50),[Visit Type]),'')						AS [Visit Type]
    ,ISNULL(CONVERT(VARCHAR(200),[Appointment Type]),'')					AS [Appointment Type]
@@ -860,6 +860,9 @@ DROP TABLE #RptgTemp
    ,[ETL_guid]
    ,CONVERT(VARCHAR(19),[Load_Dte],121) AS [Load_Dte]
   FROM #RptgTemp
+  WHERE [Appointment Type] = 'ONCOLOGY TX'
+  AND [Appointment Status] NOT IN ('canc')
+  AND [Appointment Time] BETWEEN '6/3/2020 00:00 AM' AND '6/3/2020 11:59 PM'
   --ORDER BY [Appointment Time]
   ORDER BY [PAT_MRN_ID_unhashed]
          , [Appointment Time]

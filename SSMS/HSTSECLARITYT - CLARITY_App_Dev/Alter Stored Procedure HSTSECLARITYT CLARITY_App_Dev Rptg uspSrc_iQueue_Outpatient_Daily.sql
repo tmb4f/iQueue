@@ -52,7 +52,7 @@ INFO:
                 #RptgTemp
 
       OUTPUTS:
-                CLARITY_App.Stage.iQueue_Outpatient_Extract
+                CLARITY_App.Stage.iQueue_Clinics_Extract
 ----------------------------------------------------------------------------------------------------------------------------------------
 MODS:     04/17/2019--TMB-- Create new stored procedure
           04/19/2019--WDR-- Changed APPT_NOTE to APPT_NOTES
@@ -63,7 +63,9 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							Change EOD lag date to -3 days.
 		  05/29/2019--TMB-- Add PROV_ID to extract.
 		                    Add PROV_IDs to WHERE statement that defines pilot visit population
-		  01/28/2029--TMB-- Convert commas in ENC_REASON_NAME to ^ symbol.
+		  06/05/2019--WDR-- Output table renamed to Clarity_App.
+		  08/06/2019--TMB-- Add UVPC DIGESTIVE HEALTH (10242051) to pilot department list.
+		  01/28/2020--TMB-- Convert commas in ENC_REASON_NAME to ^ symbol.
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -105,6 +107,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							 ,10243003 -- UVHE DIGESTIVE HEALTH
 							 ,10243087 -- UVHE SURG DIGESTIVE HL
 							 ,10244023 -- UVWC MED GI CL
+							 ,10242051 -- UVPC DIGESTIVE HEALTH
 							 )
 	    )
 		OR
@@ -264,6 +267,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							 ,10243003 -- UVHE DIGESTIVE HEALTH
 							 ,10243087 -- UVHE SURG DIGESTIVE HL
 							 ,10244023 -- UVWC MED GI CL
+							 ,10242051 -- UVPC DIGESTIVE HEALTH
 							 )
 	    )
 		OR
@@ -306,6 +310,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							         ,10243003 -- UVHE DIGESTIVE HEALTH
 							         ,10243087 -- UVHE SURG DIGESTIVE HL
 							         ,10244023 -- UVWC MED GI CL
+							         ,10242051 -- UVPC DIGESTIVE HEALTH
                                      )
 				)
 				OR
@@ -325,6 +330,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 							         ,10243003 -- UVHE DIGESTIVE HEALTH
 							         ,10243087 -- UVHE SURG DIGESTIVE HL
 							         ,10244023 -- UVWC MED GI CL
+							         ,10242051 -- UVPC DIGESTIVE HEALTH
                                      )
 				)
 				OR
@@ -508,6 +514,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 					    ,10243003 -- UVHE DIGESTIVE HEALTH
 						,10243087 -- UVHE SURG DIGESTIVE HL
 						,10244023 -- UVWC MED GI CL
+					    ,10242051 -- UVPC DIGESTIVE HEALTH
 						)
    )
    OR

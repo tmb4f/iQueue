@@ -52,7 +52,7 @@ INFO:
                 #RptgTemp
 
       OUTPUTS:
-                CLARITY_App.Stage.iQueue_Outpatient_Extract
+                CLARITY_App.Stage.iQueue_Clinics_Extract
 ----------------------------------------------------------------------------------------------------------------------------------------
 MODS:     04/17/2019--TMB-- Create new stored procedure
           04/19/2019--WDR-- Changed APPT_NOTE to APPT_NOTES
@@ -65,6 +65,7 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
 		                    Add PROV_IDs to WHERE statement that defines pilot visit population
 		  06/05/2019--WDR-- Output table renamed to Clarity_App.
 		  08/06/2019--TMB-- Add UVPC DIGESTIVE HEALTH (10242051) to pilot department list.
+		  01/28/2020--TMB-- Convert commas in ENC_REASON_NAME to ^ symbol.
 *****************************************************************************************************************************************/
 
   SET NOCOUNT ON;
@@ -869,16 +870,19 @@ MODS:     04/17/2019--TMB-- Create new stored procedure
    ,ISNULL(CONVERT(VARCHAR(254),[DEPARTMENT_NAME]),'')					AS [DEPARTMENT_NAME]
    ,ISNULL(CONVERT(VARCHAR(254),[DEPT_SPECIALTY_NAME]),'')				AS [DEPT_SPECIALTY_NAME]
    ,ISNULL(CONVERT(VARCHAR(18),[PROV_ID]),'')							AS [PROV_ID]
-    ,CASE
-       WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
-       ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
-     END                                                                                  AS [PROV_NAME]
+   ,CASE
+      WHEN [PROV_NAME] IS NULL  THEN CAST('' AS VARCHAR(200))
+      ELSE CAST(REPLACE([PROV_NAME],',','^') AS VARCHAR(200))
+    END                                                                AS [PROV_NAME]
    ,[APPT_DTTM]
-   ,ISNULL(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),'')    AS [ENC_REASON_NAME]
-    ,CASE
-       WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
-       ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
-     END                                                                                  AS [APPT_NOTES]
+   ,CASE
+      WHEN CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)) IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE(CONVERT(VARCHAR(1200),LEFT([ENC_REASON_NAME],LEN([ENC_REASON_NAME])-1)),',','^') AS VARCHAR(1200))
+    END                                                                 AS [ENC_REASON_NAME]
+   ,CASE
+      WHEN [APPT_NOTES] IS NULL THEN CAST(''  AS VARCHAR(1200))
+      ELSE CAST(REPLACE([APPT_NOTES],',','^') AS VARCHAR(1200))
+    END                                                                AS [APPT_NOTES]
    ,ISNULL(CONVERT(VARCHAR(254),[PRC_NAME]),'')							AS [PRC_NAME]
    ,[APPT_LENGTH]
    ,ISNULL(CONVERT(VARCHAR(254),[APPT_STATUS_NAME]),'')					AS [APPT_STATUS_NAME]
