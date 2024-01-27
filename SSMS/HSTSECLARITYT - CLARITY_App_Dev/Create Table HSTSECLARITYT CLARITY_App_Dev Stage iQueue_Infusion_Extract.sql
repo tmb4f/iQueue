@@ -41,7 +41,12 @@ CREATE TABLE [Stage].[iQueue_Infusion_Extract](
 	[Treatment Plan Provider] [VARCHAR](1200) NULL,
 	[Intake Time] [DATETIME] NULL,
 	[Check-out Time] [DATETIME] NULL,
-	[UPDATE_DATE] [DATETIME] NULL,
+	--[UPDATE_DATE] [DATETIME] NULL,
+	[UPDATE_DATE] [VARCHAR](19) NULL,
+	[Appointment Resource] [VARCHAR](1200) NULL,
+	[REFERRING_PROV_NAME_WID] [VARCHAR](221) NULL,
+	[Appointment Note] [VARCHAR](1000) NULL,
+	[Cancel Reason Name] [VARCHAR](1200) NULL,
 	[ETL_guid] [VARCHAR](50) NULL,
 	[Load_Dte] [SMALLDATETIME] NULL,
  CONSTRAINT [PK_iQueue_Infusion_Extract] PRIMARY KEY CLUSTERED 
